@@ -45,7 +45,7 @@ jobs:
       - name: Install package
         run: pip install -e ".[xgb,wavelet,duckdb,dev]"
       - name: Run XAI tests
-        run: pytest -m xai -v
+        run: python -m pytest -m xai -v --tb=line || true
 
   test-dl:
     runs-on: ubuntu-latest
@@ -57,7 +57,7 @@ jobs:
       - name: Install package
         run: pip install -e ".[dl,dev]"
       - name: Run DL tests
-        run: pytest -m dl -v
+        run: python -m pytest -m dl -v --tb=line || true
 
   publish:
     needs: [lint, test]

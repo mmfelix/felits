@@ -39,6 +39,7 @@ def test_is_dl_available() -> None:
     assert isinstance(is_dl_available(), bool)
 
 
+@pytest.mark.dl
 @pytest.mark.skipif(not is_dl_available(), reason="TensorFlow not installed")
 def test_rnn_based_model_compiles() -> None:
     from felits.models import RNNBasedModel
@@ -55,6 +56,7 @@ def test_rnn_based_model_compiles() -> None:
     assert preds.shape == y.shape
 
 
+@pytest.mark.dl
 @pytest.mark.skipif(not is_dl_available(), reason="TensorFlow not installed")
 def test_rnn_attention_model_compiles() -> None:
     from felits.models import RNNAttentionModel
@@ -71,6 +73,7 @@ def test_rnn_attention_model_compiles() -> None:
     assert preds.shape == y.shape
 
 
+@pytest.mark.dl
 @pytest.mark.skipif(not is_dl_available(), reason="TensorFlow not installed")
 def test_bahdanau_attention_shape() -> None:
     import tensorflow as tf
