@@ -1,0 +1,140 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "felits"
+version = "0.1.0"
+description = "Feature Engineering and Large-scale Integration for Time Series"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Félix Morales Mareco" },
+]
+requires-python = ">=3.11, <3.14"
+keywords = ["time-series", "forecasting", "feature-engineering", "machine-learning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "numpy>=1.24",
+    "polars>=1.0",
+    "pandas>=2.0",
+    "scikit-learn>=1.3",
+    "scipy>=1.11",
+    "statsmodels>=0.14",
+    "pyarrow>=15.0",
+    "tsfresh>=0.20",
+    "optuna>=3.5",
+    "shap>=0.44",
+    "lime>=0.2.0.1",
+]
+
+[project.optional-dependencies]
+dl = [
+    "tensorflow>=2.15",
+]
+xgb = [
+    "xgboost>=2.0",
+]
+wavelet = [
+    "PyWavelets>=1.5",
+]
+duckdb = [
+    "duckdb>=1.0",
+]
+all = [
+    "felits[dl,xgb,wavelet,duckdb]",
+]
+dev = [
+    "felits[xgb,wavelet,duckdb]",
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "mypy>=1.8",
+    "pre-commit>=3.6",
+    "types-pyyaml",
+]
+
+[project.urls]
+Homepage = "https://github.com/felits/felits"
+Issues = "https://github.com/felits/felits/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["felits"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "felits",
+    "README.md",
+    "LICENSE",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["legacy", "docs", ".venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "N", "C4", "SIM", "RUF"]
+ignore = [
+    "E501",  # line length handled by formatter
+    "B008",  # function calls in defaults (FastAPI-style patterns)
+    "RUF012", # mutable class attributes (we control all of these)
+    "RUF022", # __all__ is grouped by module for readability, not sorted alphabetically
+    "RUF002", # Docstrings use unicode punctuation intentionally for typographic quality
+    # N rules are too aggressive for an ML library that follows the
+    # standard X / y / X_train convention.
+    "N801",
+    "N802",
+    "N803",
+    "N806",
+    "N815",
+    "N818",
+    # UP007: Union[X, Y] and Optional[X] are intentionally used in this
+    # codebase for compatibility with tools that pre-date PEP 604.
+    "UP007",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["N802", "N803", "B011"]
+"examples/**/*.py" = ["N802", "N803", "B011"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+exclude = ["legacy", "docs", ".venv", "build", "dist", "examples"]
+
+[[tool.mypy.overrides]]
+module = ["tsfresh.*", "shap.*", "lime.*", "statsmodels.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:tsfresh.*",
+    "ignore::DeprecationWarning:statsmodels.*",
+    "ignore::FutureWarning:statsmodels.*",
+]
+markers = [
+    "dl: tests that require TensorFlow",
+    "xgb: tests that require xgboost",
+    "xai: tests that exercise SHAP TreeExplainer (run in a separate job to avoid a SHAP cleanup crash)",
+    "slow: slow tests",
+]
