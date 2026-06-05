@@ -16,8 +16,6 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/ruff-action@v3
-        with:
-          version: "0.9.10"
       - run: ruff check felits tests examples
       - run: ruff format --check felits tests examples
 
