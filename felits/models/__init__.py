@@ -23,5 +23,6 @@ __all__ = [
     "RNNBasedModel",
     "RandomForestForecaster",
     "XGBoostForecaster",
+    "_SklearnForecaster",
     "is_dl_available",
 ]
