@@ -9,6 +9,7 @@ from sklearn.base import BaseEstimator, RegressorMixin
 def is_dl_available() -> bool:
     try:
         import tensorflow  # noqa: F401
+
         return True
     except ImportError:
         return False
