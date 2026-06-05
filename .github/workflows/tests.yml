@@ -33,7 +33,7 @@ jobs:
       - name: Install package
         run: pip install -e ".[xgb,wavelet,duckdb,dev]"
       - name: Run tests
-        run: pytest -m "not xai" --cov=felits --cov-report=xml --cov-report=term
+        run: pytest -m "not xai" --ignore=tests/feature_selection/test_xai.py --cov=felits --cov-report=xml --cov-report=term
 
   test-xai:
     runs-on: ubuntu-latest

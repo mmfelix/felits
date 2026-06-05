@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 from sklearn.ensemble import RandomForestRegressor
 
 from felits.feature_selection.xai import shap_feature_selection
+
+pytestmark = pytest.mark.xai
 
 
 def test_shap_feature_selection_returns_list_and_importances() -> None:
