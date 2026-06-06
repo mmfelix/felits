@@ -1,4 +1,5 @@
 """Base interfaces and utilities for time-series forecasting models."""
+
 from __future__ import annotations
 
 from typing import Any, Protocol

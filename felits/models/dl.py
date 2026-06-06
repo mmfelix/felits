@@ -1,4 +1,5 @@
 """Deep-learning models for time-series forecasting (requires TensorFlow)."""
+
 from __future__ import annotations
 
 from typing import Any, Dict
@@ -93,9 +94,7 @@ def _build_rnn(model_type: str, num_units: int, with_attention: bool) -> Any:
     if model_type == "BiGRU":
         return Bidirectional(GRU(units=num_units, return_sequences=with_attention))
 
-    raise ValueError(
-        f"Unknown RNN type {model_type!r}; choose from LSTM, GRU, BiLSTM, or BiGRU"
-    )
+    raise ValueError(f"Unknown RNN type {model_type!r}; choose from LSTM, GRU, BiLSTM, or BiGRU")
 
 
 class BahdanauAttention:

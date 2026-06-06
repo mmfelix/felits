@@ -1,4 +1,5 @@
 """Scikit-learn compatible forecasters for time-series windows."""
+
 from __future__ import annotations
 
 from typing import Any

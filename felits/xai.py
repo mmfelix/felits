@@ -3,6 +3,7 @@
 This module provides high-level wrappers for closed-loop SHAP feature
 elimination and local explanations of single forecasts using SHAP and LIME.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -173,9 +174,7 @@ def explain_forecast(
     try:
         import shap
     except ImportError as exc:
-        raise ImportError(
-            "explain_forecast requires shap. Install with: pip install shap"
-        ) from exc
+        raise ImportError("explain_forecast requires shap. Install with: pip install shap") from exc
 
     if isinstance(X_background, pd.DataFrame):
         feature_names = list(X_background.columns) if feature_names is None else feature_names

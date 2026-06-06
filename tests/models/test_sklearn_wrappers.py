@@ -1,4 +1,5 @@
 """Tests for sklearn-compatible forecasters and deep-learning models."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -132,8 +133,15 @@ def test_patchtst_forecaster_compiles() -> None:
 
     X, y = _toy_dataset(n=32, t=48, f=1)
     model = PatchTSTForecaster(
-        timesteps=48, features=1, patch_length=8, patch_stride=4,
-        d_model=32, num_heads=2, ff_dim=64, num_layers=1, output_units=5,
+        timesteps=48,
+        features=1,
+        patch_length=8,
+        patch_stride=4,
+        d_model=32,
+        num_heads=2,
+        ff_dim=64,
+        num_layers=1,
+        output_units=5,
     )
     import tensorflow as tf
 

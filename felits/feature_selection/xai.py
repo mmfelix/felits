@@ -4,6 +4,7 @@ This module provides closed-loop SHAP meta-optimization for feature
 elimination, as well as local explanations for single forecasts using
 SHAP and LIME.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable

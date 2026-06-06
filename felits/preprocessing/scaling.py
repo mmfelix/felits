@@ -5,6 +5,7 @@ it into sliding windows for supervised learning. It accepts both ``pandas``
 and ``polars`` DataFrames at the public API, converting internally to
 ``polars`` for performance.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -54,8 +55,7 @@ class TimeSeriesScaler:
     ) -> None:
         if scaling_type not in ("minmax", "standard", "robust"):
             raise ValueError(
-                f"Unknown scaling_type={scaling_type!r}. "
-                "Must be 'minmax', 'standard', or 'robust'."
+                f"Unknown scaling_type={scaling_type!r}. Must be 'minmax', 'standard', or 'robust'."
             )
         self.scaling_type = scaling_type
         self.feature_range = feature_range
@@ -151,9 +151,7 @@ class TimeSeriesScaler:
             ).ravel()
 
             if feature_cols:
-                scaled_features = self.scaler_.transform(
-                    pdf[feature_cols].to_numpy().astype(float)
-                )
+                scaled_features = self.scaler_.transform(pdf[feature_cols].to_numpy().astype(float))
             else:
                 # No feature columns; scale entire DataFrame with feature scaler
                 return self.scaler_.transform(pdf.to_numpy().astype(float))
