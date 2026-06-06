@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable, Optional
+from typing import Iterable
 
 import numpy as np
 
@@ -10,13 +10,24 @@ from .._compat import datetime_columns, to_polars
 
 _VALID_STATS = {"mean", "std", "min", "max", "median", "sum", "skew", "kurt"}
 
+_ROLLING_STATS = {
+    "mean": lambda c, w, ms: c.rolling_mean(window_size=w, min_samples=ms),
+    "std": lambda c, w, ms: c.rolling_std(window_size=w, min_samples=ms),
+    "min": lambda c, w, ms: c.rolling_min(window_size=w, min_samples=ms),
+    "max": lambda c, w, ms: c.rolling_max(window_size=w, min_samples=ms),
+    "median": lambda c, w, ms: c.rolling_median(window_size=w, min_samples=ms),
+    "sum": lambda c, w, ms: c.rolling_sum(window_size=w, min_samples=ms),
+    "skew": lambda c, w, ms: c.rolling_skew(window_size=w, min_samples=ms),
+    "kurt": lambda c, w, ms: c.rolling_kurtosis(window_size=w, min_samples=ms),
+}
+
 
 def cyclical_encode(
     df,
-    period: Optional[int] = None,
-    columns: Optional[Iterable[str]] = None,
+    period: int | None = None,
+    columns: Iterable[str] | None = None,
     drop_original: bool = False,
-    datetime_col: Optional[str] = None,
+    datetime_col: str | None = None,
 ):
     """Add sin/cos cyclical encodings of calendar or periodic variables.
 
@@ -105,7 +116,7 @@ def rolling_statistics(
     columns: Iterable[str],
     windows: Iterable[int],
     stats: Iterable[str] = ("mean", "std"),
-    min_samples: Optional[int] = None,
+    min_samples: int | None = None,
 ):
     """Compute rolling statistics.
 
@@ -122,6 +133,17 @@ def rolling_statistics(
     if unknown:
         raise ValueError(f"Unknown statistics: {sorted(unknown)}")
 
+    stat_exprs = {
+        "mean": lambda c, w, m: c.rolling_mean(window_size=w, min_samples=m),
+        "std": lambda c, w, m: c.rolling_std(window_size=w, min_samples=m),
+        "min": lambda c, w, m: c.rolling_min(window_size=w, min_samples=m),
+        "max": lambda c, w, m: c.rolling_max(window_size=w, min_samples=m),
+        "median": lambda c, w, m: c.rolling_median(window_size=w, min_samples=m),
+        "sum": lambda c, w, m: c.rolling_sum(window_size=w, min_samples=m),
+        "skew": lambda c, w, m: c.rolling_skew(window_size=w, min_samples=m),
+        "kurt": lambda c, w, m: c.rolling_kurtosis(window_size=w, min_samples=m),
+    }
+
     for col in columns:
         if col not in pdf.columns:
             raise KeyError(f"Column {col!r} not in DataFrame.")
@@ -132,32 +154,7 @@ def rolling_statistics(
             for stat in stats:
                 c = pl.col(col)
                 name = f"{col}_roll{w}_{stat}"
-                if stat == "mean":
-                    pdf = pdf.with_columns(
-                        c.rolling_mean(window_size=w, min_samples=ms).alias(name)
-                    )
-                elif stat == "std":
-                    pdf = pdf.with_columns(c.rolling_std(window_size=w, min_samples=ms).alias(name))
-                elif stat == "min":
-                    pdf = pdf.with_columns(c.rolling_min(window_size=w, min_samples=ms).alias(name))
-                elif stat == "max":
-                    pdf = pdf.with_columns(c.rolling_max(window_size=w, min_samples=ms).alias(name))
-                elif stat == "median":
-                    pdf = pdf.with_columns(
-                        c.rolling_median(window_size=w, min_samples=ms).alias(name)
-                    )
-                elif stat == "sum":
-                    pdf = pdf.with_columns(c.rolling_sum(window_size=w, min_samples=ms).alias(name))
-                elif stat == "skew":
-                    pdf = pdf.with_columns(
-                        c.rolling_skew(window_size=w, min_samples=ms).alias(name)
-                    )
-                elif stat == "kurt":
-                    pdf = pdf.with_columns(
-                        c.rolling_kurtosis(window_size=w, min_samples=ms).alias(name)
-                    )
-                else:
-                    raise ValueError(f"Unknown statistic: {stat}")
+                pdf = pdf.with_columns(stat_exprs[stat](c, w, ms).alias(name))
     return pdf
 
 
