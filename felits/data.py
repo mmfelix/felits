@@ -34,18 +34,24 @@ def make_synthetic_ts(
 
     Parameters
     ----------
-    n_samples:
-        Number of rows.
-    n_features:
-        Number of exogenous feature columns (named ``"x0"``, ``"x1"``…).
-    seasonality:
-        Add a sinusoidal seasonal component to the target.
-    period:
-        Period of the seasonal component.
-    noise_std:
+    n_samples : int, default=1000
+        Number of rows in the generated DataFrame.
+    n_features : int, default=1
+        Number of exogenous feature columns (named ``"x0"``, ``"x1"``, …).
+    seasonality : bool, default=True
+        If True, add a sinusoidal seasonal component to the target column.
+    period : int, default=24
+        Period of the primary seasonal component (in time steps).
+    noise_std : float, default=0.1
         Standard deviation of the additive Gaussian noise.
-    seed:
+    seed : int, default=0
         Random seed for reproducibility.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with a DatetimeIndex (hourly), a ``"y"`` target column,
+        and ``n_features`` exogenous columns.
     """
     rng = np.random.default_rng(seed)
     t = np.arange(n_samples)
@@ -65,6 +71,21 @@ def load_example_dataset(name: str = "synthetic_demand") -> pd.DataFrame:
     The default ``"synthetic_demand"`` is generated on the fly by
     :func:`make_synthetic_ts` so users can run the quickstart without
     any external files.
+
+    Parameters
+    ----------
+    name : str, default="synthetic_demand"
+        Name of the dataset to load.
+
+    Returns
+    -------
+    pd.DataFrame
+        The requested dataset as a pandas DataFrame.
+
+    Raises
+    ------
+    ValueError
+        If the dataset name is not recognized.
     """
     if name == "synthetic_demand":
         return make_synthetic_ts(n_samples=24 * 30)
@@ -79,6 +100,17 @@ def load_sin_data(path: str | None = None) -> pd.DataFrame | None:
     location relative to the current working directory. When no file is
     found it returns ``None`` rather than raising, so that the test suite
     is environment-agnostic.
+
+    Parameters
+    ----------
+    path : str or None, default=None
+        Path to the CSV file. If None, defaults to
+        ``dataset/processed_dataset.csv``.
+
+    Returns
+    -------
+    pd.DataFrame or None
+        The dataset with a DatetimeIndex, or None if the file is not found.
     """
     if path is None:
         path = os.path.join("dataset", "processed_dataset.csv")

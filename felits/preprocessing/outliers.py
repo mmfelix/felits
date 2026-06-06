@@ -7,9 +7,10 @@ from typing import TYPE_CHECKING, Union
 import numpy as np
 
 if TYPE_CHECKING:
+    import pandas as pd
     import polars as pl
 
-ArrayLike = Union[np.ndarray, "pl.Series", "pl.DataFrame", "pd.Series", "pd.DataFrame"]  # noqa: F821
+ArrayLike = Union[np.ndarray, "pl.Series", "pl.DataFrame", "pd.Series", "pd.DataFrame"]
 
 
 def iqr_outlier_detection(
@@ -92,6 +93,7 @@ def _as_1d_float64(x: ArrayLike, column: str | None = None) -> np.ndarray:
     if is_polars(x):
         import polars as pl
 
+        assert isinstance(x, (pl.DataFrame, pl.Series))
         if isinstance(x, pl.DataFrame):
             col = column if column else x.columns[0]
             return x[col].to_numpy().astype(float, copy=False)
@@ -99,6 +101,7 @@ def _as_1d_float64(x: ArrayLike, column: str | None = None) -> np.ndarray:
     if is_pandas(x):
         import pandas as pd
 
+        assert isinstance(x, (pd.DataFrame, pd.Series))
         if isinstance(x, pd.DataFrame):
             col = column if column else x.columns[0]
             return x[col].to_numpy(dtype=float, copy=False)

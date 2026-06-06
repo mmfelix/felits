@@ -30,7 +30,7 @@ __all__ = [
 ]
 
 
-def _psi(n) -> float:
+def _psi(n):
     """Digamma function evaluated elementwise; accepts scalars or arrays."""
     return np.asarray(digamma(np.asarray(n, dtype=float)), dtype=float)
 

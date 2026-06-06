@@ -40,7 +40,7 @@ def cyclical_encode(
 
     # Mode 1: encode specific integer columns
     if columns is not None:
-        p = period if period else 24
+        p = float(period if period else 24)
         out = pdf
         for col in columns:
             out = out.with_columns(
@@ -73,7 +73,7 @@ def cyclical_encode(
             pl.col(dt_col).dt.month().alias("month"),
         ]
     )
-    for cal_col, p in [("hour", 24), ("dayofweek", 7), ("dayofyear", 365.25), ("month", 12)]:
+    for cal_col, p in [("hour", 24.0), ("dayofweek", 7.0), ("dayofyear", 365.25), ("month", 12.0)]:
         out = out.with_columns(
             [
                 (2 * np.pi * pl.col(cal_col) / p).sin().alias(f"{cal_col}_sin"),

@@ -8,20 +8,25 @@ native type.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from .._compat import is_pandas, is_polars
+
+if TYPE_CHECKING:
+    import pandas as pd
+    import polars as pl
 
 
 @dataclass
 class DecompositionResult:
     """Container for the three STL components."""
 
-    observed: "pd.Series | pl.Series | np.ndarray"  # noqa: F821
-    trend: "pd.Series | pl.Series | np.ndarray"  # noqa: F821
-    seasonal: "pd.Series | pl.Series | np.ndarray"  # noqa: F821
-    resid: "pd.Series | pl.Series | np.ndarray"  # noqa: F821
+    observed: "pd.Series | pl.Series | np.ndarray"
+    trend: "pd.Series | pl.Series | np.ndarray"
+    seasonal: "pd.Series | pl.Series | np.ndarray"
+    resid: "pd.Series | pl.Series | np.ndarray"
 
     def to_dict(self) -> dict[str, object]:
         return {

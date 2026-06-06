@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -25,7 +26,17 @@ __all__ = ["FeatureSelector", "PipelineResult", "select_features"]
 
 @dataclass
 class PipelineResult:
-    """The output of :meth:`FeatureSelector.run`."""
+    """The output of :meth:`FeatureSelector.run`.
+
+    Attributes
+    ----------
+    selected_features : list[str]
+        Features that survived all pipeline steps.
+    method_outputs : dict[str, list[str]]
+        Per-step feature lists before intersection.
+    final_importances : dict[str, float]
+        Aggregated importance scores (populated when available).
+    """
 
     selected_features: list[str]
     method_outputs: dict[str, list[str]] = field(default_factory=dict)
@@ -35,8 +46,15 @@ class PipelineResult:
 class FeatureSelector:
     """Composable feature-selection pipeline.
 
-    Example
-    -------
+    Parameters
+    ----------
+    steps : Sequence[tuple[str, dict]]
+        Ordered list of ``(method_name, kwargs)`` tuples. Valid method
+        names are ``"granger"``, ``"mrmr"``, ``"lasso"``,
+        ``"adaptive_lasso"``, ``"rf"``, and ``"shap"``.
+
+    Examples
+    --------
     >>> from felits.feature_selection import FeatureSelector
     >>> fs = FeatureSelector(steps=[
     ...     ("granger", {"max_lag": 12}),
@@ -49,7 +67,7 @@ class FeatureSelector:
 
     VALID_STEPS = ("granger", "mrmr", "lasso", "adaptive_lasso", "rf", "shap")
 
-    def __init__(self, steps: Sequence[tuple[str, dict]]):
+    def __init__(self, steps: Sequence[tuple[str, dict]]) -> None:
         for name, _ in steps:
             if name not in self.VALID_STEPS:
                 raise ValueError(f"Unknown step {name!r}; choose from {list(self.VALID_STEPS)}")
@@ -59,19 +77,32 @@ class FeatureSelector:
         self,
         X: pd.DataFrame,
         y: pd.Series | np.ndarray,
-        shap_model=None,
+        shap_model: Any = None,
         shap_X: pd.DataFrame | None = None,
     ) -> PipelineResult:
         """Execute the pipeline and return the surviving features.
 
         Parameters
         ----------
-        X, y:
-            Training features and target.
-        shap_model, shap_X:
-            Required when the pipeline includes the ``"shap"`` step:
-            ``shap_model`` is a fitted estimator and ``shap_X`` is the
-            background data for the SHAP explainer.
+        X : pd.DataFrame
+            Training feature matrix.
+        y : pd.Series or np.ndarray
+            Target values.
+        shap_model : Any, default=None
+            A fitted estimator required when the pipeline includes the
+            ``"shap"`` step.
+        shap_X : pd.DataFrame or None, default=None
+            Background data for the SHAP explainer. If None, ``X`` is used.
+
+        Returns
+        -------
+        PipelineResult
+            Object containing the selected features and per-step outputs.
+
+        Raises
+        ------
+        ValueError
+            If the ``"shap"`` step is included but ``shap_model`` is None.
         """
         candidates: set[str] | None = None
         outputs: dict[str, list[str]] = {}
@@ -93,9 +124,31 @@ class FeatureSelector:
         X: pd.DataFrame,
         y: pd.Series | np.ndarray,
         kwargs: dict,
-        shap_model=None,
+        shap_model: Any = None,
         shap_X: pd.DataFrame | None = None,
     ) -> list[str]:
+        """Dispatch a single pipeline step to the appropriate selection function.
+
+        Parameters
+        ----------
+        name : str
+            Step name (must be in ``VALID_STEPS``).
+        X : pd.DataFrame
+            Feature matrix.
+        y : pd.Series or np.ndarray
+            Target values.
+        kwargs : dict
+            Keyword arguments forwarded to the selection function.
+        shap_model : Any, default=None
+            Fitted model for the SHAP step.
+        shap_X : pd.DataFrame or None, default=None
+            Background data for SHAP.
+
+        Returns
+        -------
+        list[str]
+            Selected feature names for this step.
+        """
         if name == "granger":
             return granger_feature_selection(X, target=_infer_target_name(X, y, kwargs), **kwargs)
         if name == "mrmr":
@@ -116,7 +169,28 @@ class FeatureSelector:
         raise AssertionError(f"Unhandled step {name!r}")
 
 
-def _infer_target_name(X: pd.DataFrame, y, kwargs: dict) -> str:
+def _infer_target_name(X: pd.DataFrame, y: Any, kwargs: dict) -> str:
+    """Extract the target column name from kwargs for the Granger step.
+
+    Parameters
+    ----------
+    X : pd.DataFrame
+        Feature matrix (unused, kept for API consistency).
+    y : Any
+        Target values (unused, kept for API consistency).
+    kwargs : dict
+        Must contain a ``"target"`` key.
+
+    Returns
+    -------
+    str
+        The target column name.
+
+    Raises
+    ------
+    ValueError
+        If ``"target"`` is not present in kwargs.
+    """
     target = kwargs.get("target")
     if target is None:
         raise ValueError("`granger` step requires a `target` kwarg naming the target column.")
@@ -127,15 +201,38 @@ def select_features(
     df: pd.DataFrame,
     target: str,
     methods: Sequence[str] = ("mrmr", "lasso"),
-    **kwargs,
+    **kwargs: Any,
 ) -> list[str]:
-    """Convenience one-liner for the most common pipelines.
+    """Convenience one-liner for the most common feature-selection pipelines.
 
-    Example
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing both features and the target column.
+    target : str
+        Name of the target column.
+    methods : Sequence[str], default=("mrmr", "lasso")
+        Selection methods to apply. Valid names: ``"granger"``, ``"mrmr"``,
+        ``"lasso"``, ``"adaptive_lasso"``, ``"rf"``.
+    **kwargs : Any
+        Additional keyword arguments forwarded to each method. Supported
+        keys include ``max_lag``, ``k_features``, ``alpha``, ``threshold``.
+
+    Returns
     -------
+    list[str]
+        Intersection of features selected by all methods.
+
+    Raises
+    ------
+    ValueError
+        If no recognized methods are provided.
+
+    Examples
+    --------
     >>> selected = select_features(df, target="demand",
     ...     methods=("mrmr", "lasso"),
-    ...     max_lag=12, k_features=20, alpha="auto")
+    ...     k_features=20, alpha="auto")
     """
     steps: list[tuple[str, dict]] = []
     if "granger" in methods:

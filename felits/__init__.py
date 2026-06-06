@@ -73,7 +73,7 @@ from .preprocessing import (
 )
 from .xai import deep_shap_selector, explain_forecast
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Félix Morales Mareco"
 __license__ = "MIT"
 
@@ -142,7 +142,11 @@ __all__ = [
 # Re-export the DL models and sklearn forecasters at the top level
 from .models import (
     BahdanauAttention,
+    ForecasterProtocol,
+    LightGBMForecaster,
     LinearForecaster,
+    LSTMAttentionForecaster,
+    PatchTSTForecaster,
     RandomForestForecaster,
     RNNAttentionModel,
     RNNBasedModel,
@@ -152,7 +156,11 @@ from .models import (
 
 __all__ += [
     "BahdanauAttention",
+    "ForecasterProtocol",
+    "LightGBMForecaster",
     "LinearForecaster",
+    "LSTMAttentionForecaster",
+    "PatchTSTForecaster",
     "RNNAttentionModel",
     "RNNBasedModel",
     "RandomForestForecaster",

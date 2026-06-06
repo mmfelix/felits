@@ -13,6 +13,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
 import optuna
+import pandas as pd
 
 __all__ = ["OptunaOptimizer", "StudySummary"]
 
@@ -67,7 +68,7 @@ class OptunaOptimizer:
             raise RuntimeError("Call `run` before `summary`.")
         out = StudySummary(
             n_trials=len(self.study_.trials),
-            directions=list(self.study_.directions),
+            directions=[str(d) for d in self.study_.directions],
         )
         try:
             best = self.study_.best_trials
@@ -79,7 +80,7 @@ class OptunaOptimizer:
             out.best_trials.append(row)
         return out
 
-    def to_dataframe(self):  # type: ignore[name-defined]
+    def to_dataframe(self) -> "pd.DataFrame":
         import pandas as pd
 
         if self.study_ is None:

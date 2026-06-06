@@ -108,7 +108,7 @@ def adaptive_lasso_selection(
         from sklearn.linear_model import LassoCV
 
         class _WeightedLassoCV(LassoCV):
-            def fit(self, X, y, **kwargs):  # type: ignore[override]
+            def fit(self, X, y, **kwargs):
                 # Hack: re-define the path with custom sample weights isn't
                 # supported, so fall back to a grid search on alpha.
                 best = (np.inf, None, None)

@@ -142,8 +142,8 @@ def pcmci_selection(
     informative ``ImportError`` when it is not installed.
     """
     try:
-        from tigramite.independence_test.parcorr import ParCorr  # type: ignore
-        from tigramite.pcmci import PCMCI  # type: ignore
+        from tigramite.independence_test.parcorr import ParCorr
+        from tigramite.pcmci import PCMCI
     except ImportError as exc:
         raise ImportError(
             "pcmci_selection requires tigramite. Install with: pip install tigramite"

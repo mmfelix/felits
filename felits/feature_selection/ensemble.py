@@ -7,6 +7,7 @@ Wrappers around ``RandomForestRegressor``, ``XGBoost`` (optional) and
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -23,6 +24,20 @@ __all__ = [
 def _to_arrays(
     X: pd.DataFrame | np.ndarray, y: pd.Series | np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, list[str]]:
+    """Convert inputs to numpy arrays and extract column names.
+
+    Parameters
+    ----------
+    X : pd.DataFrame or np.ndarray
+        Feature matrix.
+    y : pd.Series or np.ndarray
+        Target values.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray, list[str]]
+        Feature array, target array, and list of feature names.
+    """
     if isinstance(X, pd.DataFrame):
         cols = list(X.columns)
         Xarr = X.to_numpy(dtype=float)
@@ -36,6 +51,23 @@ def _to_arrays(
 def _select_from_scores(
     cols: list[str], scores: np.ndarray, threshold: float
 ) -> tuple[list[str], dict[str, float]]:
+    """Select features whose importance exceeds a relative threshold.
+
+    Parameters
+    ----------
+    cols : list[str]
+        Feature names.
+    scores : np.ndarray
+        Importance scores aligned with ``cols``.
+    threshold : float
+        Relative threshold in [0, 1]. Features with score below
+        ``threshold * max(scores)`` are excluded.
+
+    Returns
+    -------
+    tuple[list[str], dict[str, float]]
+        Selected feature names and full importance dictionary.
+    """
     importance = {c: float(s) for c, s in zip(cols, scores, strict=True)}
     max_s = max(scores) if scores.size and scores.max() > 0 else 1.0
     selected = [c for c, s in importance.items() if s >= threshold * max_s]
@@ -49,7 +81,26 @@ def rf_importance_selection(
     n_estimators: int = 200,
     random_state: int = 0,
 ) -> tuple[list[str], dict[str, float]]:
-    """Random-forest impurity-based importance."""
+    """Random-forest impurity-based feature importance selection.
+
+    Parameters
+    ----------
+    X : pd.DataFrame or np.ndarray
+        Feature matrix.
+    y : pd.Series or np.ndarray
+        Target values.
+    threshold : float, default=0.01
+        Relative importance threshold.
+    n_estimators : int, default=200
+        Number of trees in the forest.
+    random_state : int, default=0
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    tuple[list[str], dict[str, float]]
+        Selected feature names and importance dictionary.
+    """
     Xarr, yarr, cols = _to_arrays(X, y)
     rf = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state, n_jobs=-1).fit(
         Xarr, yarr
@@ -64,10 +115,36 @@ def xgboost_importance_selection(
     n_estimators: int = 200,
     random_state: int = 0,
 ) -> tuple[list[str], dict[str, float]]:
-    """XGBoost gain-based importance (requires the optional ``xgboost`` dep)."""
+    """XGBoost gain-based feature importance selection.
+
+    Requires the optional ``xgboost`` dependency.
+
+    Parameters
+    ----------
+    X : pd.DataFrame or np.ndarray
+        Feature matrix.
+    y : pd.Series or np.ndarray
+        Target values.
+    threshold : float, default=0.01
+        Relative importance threshold.
+    n_estimators : int, default=200
+        Number of boosting rounds.
+    random_state : int, default=0
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    tuple[list[str], dict[str, float]]
+        Selected feature names and importance dictionary.
+
+    Raises
+    ------
+    ImportError
+        If the ``xgboost`` package is not installed.
+    """
     try:
-        import xgboost as xgb  # type: ignore
-    except ImportError as exc:  # pragma: no cover
+        import xgboost as xgb
+    except ImportError as exc:
         raise ImportError(
             "xgboost_importance_selection requires xgboost. Install with: pip install 'felits[xgb]'"
         ) from exc
@@ -79,24 +156,37 @@ def xgboost_importance_selection(
 
 
 def permutation_importance_selection(
-    model,
+    model: Any,
     X: pd.DataFrame | np.ndarray,
     y: pd.Series | np.ndarray,
     threshold: float = 0.01,
     n_repeats: int = 10,
     random_state: int = 0,
-    scoring: Callable | None = None,
+    scoring: Callable[..., float] | None = None,
 ) -> tuple[list[str], dict[str, float]]:
-    """Permutation importance (model-agnostic).
+    """Permutation importance feature selection (model-agnostic).
 
     Parameters
     ----------
-    model:
+    model : Any
         A fitted estimator with a ``predict`` method.
-    X, y:
-        Held-out data for the permutation test.
-    threshold:
+    X : pd.DataFrame or np.ndarray
+        Held-out feature data for the permutation test.
+    y : pd.Series or np.ndarray
+        Held-out target values.
+    threshold : float, default=0.01
         Relative threshold against the max importance (0–1).
+    n_repeats : int, default=10
+        Number of times each feature is permuted.
+    random_state : int, default=0
+        Random seed for reproducibility.
+    scoring : Callable or None, default=None
+        Scoring function passed to ``sklearn.inspection.permutation_importance``.
+
+    Returns
+    -------
+    tuple[list[str], dict[str, float]]
+        Selected feature names and importance dictionary.
     """
     Xarr, yarr, cols = _to_arrays(X, y)
     r = permutation_importance(

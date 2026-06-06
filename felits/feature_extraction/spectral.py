@@ -120,7 +120,7 @@ def wavelet_features(
     Requires the optional dependency ``PyWavelets``.
     """
     try:
-        import pywt  # type: ignore
+        import pywt
     except ImportError as exc:  # pragma: no cover - exercised only without PyWavelets
         raise ImportError(
             "wavelet_features requires PyWavelets. Install with: pip install 'felits[wavelet]'"
