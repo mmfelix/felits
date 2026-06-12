@@ -61,3 +61,9 @@ poetry.lock
 
 # docs
 research-docs/
+
+# Personal usage manuals (not tracked)
+manual/
+
+# Research notebooks (not tracked)
+notebooks/paper/
