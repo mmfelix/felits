@@ -67,3 +67,6 @@ manual/
 
 # Research notebooks (not tracked)
 notebooks/paper/
+
+# Jupyter AI chat files
+*.chat
