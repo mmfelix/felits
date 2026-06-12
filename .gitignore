@@ -28,6 +28,9 @@ dist/
 
 # Jupyter
 .ipynb_checkpoints/
+.jupyter/
+.virtual_documents/
+.jupyter_ystore.db
 
 # IDE
 .vscode/

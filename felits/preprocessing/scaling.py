@@ -1,24 +1,18 @@
 """Scaling and sliding-window splitting for time-series forecasting.
 
 This module provides utilities for scaling time-series data and splitting
-it into sliding windows for supervised learning. It accepts both ``pandas``
-and ``polars`` DataFrames at the public API, converting internally to
-``polars`` for performance.
+it into sliding windows for supervised learning using pandas DataFrames.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Optional
 
 import numpy as np
 import pandas as pd
-import polars as pl
-
-from .._compat import to_polars
 
 ScalerType = Literal["minmax", "standard", "robust"]
-DataFrameLike = Union[pd.DataFrame, pl.DataFrame]
 
 
 class TimeSeriesScaler:
@@ -77,12 +71,12 @@ class TimeSeriesScaler:
 
         raise AssertionError(f"Unknown scaler type {self.scaling_type!r}")
 
-    def fit(self, X: DataFrameLike, target: str) -> "TimeSeriesScaler":
+    def fit(self, X: pd.DataFrame, target: str) -> "TimeSeriesScaler":
         """Fit the scalers to the provided data.
 
         Parameters
         ----------
-        X : DataFrameLike
+        X : pd.DataFrame
             The input data containing both features and the target column.
         target : str
             The name of the target column to scale separately.
@@ -97,26 +91,24 @@ class TimeSeriesScaler:
         KeyError
             If the `target` column is not found in `X`.
         """
-        pdf = to_polars(X)
-        if target not in pdf.columns:
-            raise KeyError(f"target={target!r} not found in columns: {pdf.columns}")
+        if target not in X.columns:
+            raise KeyError(f"target={target!r} not found in columns: {list(X.columns)}")
 
-        feature_cols = [col for col in pdf.columns if col != target]
+        feature_cols = [col for col in X.columns if col != target]
         self.feature_names_ = feature_cols
         self.target_name_ = target
 
         self.scaler_ = self._make_scaler()
         if feature_cols:
-            self.scaler_.fit(pdf[feature_cols].to_numpy().astype(float))
+            self.scaler_.fit(X[feature_cols].to_numpy().astype(float))
         else:
-            # No feature columns; fit on full data to keep scaler valid
-            self.scaler_.fit(pdf.to_numpy().astype(float))
+            self.scaler_.fit(X.to_numpy().astype(float))
 
         self.target_scaler_ = self._make_scaler()
-        self.target_scaler_.fit(pdf[target].to_numpy().astype(float).reshape(-1, 1))
+        self.target_scaler_.fit(X[target].to_numpy().astype(float).reshape(-1, 1))
         return self
 
-    def transform(self, X: DataFrameLike) -> np.ndarray:
+    def transform(self, X: pd.DataFrame) -> np.ndarray:
         """Transform the provided data using the fitted scalers.
 
         If the input contains the target column (set during ``fit``), both
@@ -125,7 +117,7 @@ class TimeSeriesScaler:
 
         Parameters
         ----------
-        X : DataFrameLike
+        X : pd.DataFrame
             The input data to transform.
 
         Returns
@@ -141,24 +133,21 @@ class TimeSeriesScaler:
         if self.scaler_ is None:
             raise RuntimeError("Call `fit` before `transform`.")
 
-        pdf = to_polars(X)
-        has_target = self.target_name_ in pdf.columns
+        has_target = self.target_name_ in X.columns
 
         if has_target and self.target_scaler_ is not None:
-            feature_cols = [c for c in pdf.columns if c != self.target_name_]
+            feature_cols = [c for c in X.columns if c != self.target_name_]
             scaled_target = self.target_scaler_.transform(
-                pdf[self.target_name_].to_numpy().astype(float).reshape(-1, 1)
+                X[self.target_name_].to_numpy().astype(float).reshape(-1, 1)
             ).ravel()
 
             if feature_cols:
-                scaled_features = self.scaler_.transform(pdf[feature_cols].to_numpy().astype(float))
+                scaled_features = self.scaler_.transform(X[feature_cols].to_numpy().astype(float))
             else:
-                # No feature columns; scale entire DataFrame with feature scaler
-                return self.scaler_.transform(pdf.to_numpy().astype(float))
+                return self.scaler_.transform(X.to_numpy().astype(float))
 
-            # Reconstruct in original column order
-            all_cols = list(pdf.columns)
-            result = np.empty((len(pdf), len(all_cols)), dtype=float)
+            all_cols = list(X.columns)
+            result = np.empty((len(X), len(all_cols)), dtype=float)
             feat_idx = 0
             for i, col in enumerate(all_cols):
                 if col == self.target_name_:
@@ -168,15 +157,15 @@ class TimeSeriesScaler:
                     feat_idx += 1
             return result
 
-        feature_cols = [col for col in self.feature_names_ if col in pdf.columns]
-        return self.scaler_.transform(pdf[feature_cols].to_numpy().astype(float))
+        feature_cols = [col for col in self.feature_names_ if col in X.columns]
+        return self.scaler_.transform(X[feature_cols].to_numpy().astype(float))
 
-    def fit_transform(self, X: DataFrameLike, target: str) -> np.ndarray:
+    def fit_transform(self, X: pd.DataFrame, target: str) -> np.ndarray:
         """Fit the scalers and transform the data in one step.
 
         Parameters
         ----------
-        X : DataFrameLike
+        X : pd.DataFrame
             The input data containing both features and the target column.
         target : str
             The name of target column to scale separately.
@@ -296,12 +285,12 @@ class SlidingWindowSplitter:
         self.jump = jump
         self.scaling_type = scaling_type
 
-    def split(self, df: DataFrameLike) -> WindowedSplit:
+    def split(self, df: pd.DataFrame) -> WindowedSplit:
         """Split the DataFrame into sliding windows.
 
         Parameters
         ----------
-        df : DataFrameLike
+        df : pd.DataFrame
             The input time-series DataFrame.
 
         Returns
@@ -317,11 +306,10 @@ class SlidingWindowSplitter:
         ValueError
             If the DataFrame is too short for the requested window sizes.
         """
-        pdf = to_polars(df)
-        if self.target not in pdf.columns:
-            raise KeyError(f"target={self.target!r} not found in columns: {pdf.columns}")
+        if self.target not in df.columns:
+            raise KeyError(f"target={self.target!r} not found in columns: {list(df.columns)}")
 
-        n = len(pdf)
+        n = len(df)
         if n < self.hist_window + self.pred_window:
             raise ValueError(
                 f"DataFrame too short (length {n}) for the requested "
@@ -330,13 +318,12 @@ class SlidingWindowSplitter:
 
         scaler: Optional[TimeSeriesScaler] = None
         if self.scaling_type is not None:
-            scaler = TimeSeriesScaler(scaling_type=self.scaling_type).fit(pdf, self.target)
-            # Use transform() which handles both features and target correctly
-            data = scaler.transform(pdf)
+            scaler = TimeSeriesScaler(scaling_type=self.scaling_type).fit(df, self.target)
+            data = scaler.transform(df)
         else:
-            data = pdf.to_numpy().astype(float)
+            data = df.to_numpy().astype(float)
 
-        target_index = pdf.columns.index(self.target)
+        target_index = list(df.columns).index(self.target)
 
         if self.jump:
             step = self.pred_window

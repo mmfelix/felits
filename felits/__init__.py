@@ -73,7 +73,7 @@ from .preprocessing import (
 )
 from .xai import deep_shap_selector, explain_forecast
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __author__ = "Félix Morales Mareco"
 __license__ = "MIT"
 

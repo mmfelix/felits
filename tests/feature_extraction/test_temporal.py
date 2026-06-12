@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import polars as pl
 import pytest
 
 from felits.feature_extraction.temporal import (
@@ -17,7 +16,7 @@ def test_cyclical_encode_with_datetimeindex() -> None:
     idx = pd.date_range("2024-01-01", periods=48, freq="h")
     df = pd.DataFrame({"value": np.arange(48)}, index=idx)
     out = cyclical_encode(df)
-    assert isinstance(out, pl.DataFrame)
+    assert isinstance(out, pd.DataFrame)
     for col in (
         "hour_sin",
         "hour_cos",
@@ -37,11 +36,11 @@ def test_cyclical_encode_with_datetimeindex() -> None:
 def test_cyclical_encode_with_explicit_columns() -> None:
     df = pd.DataFrame({"hour": np.arange(25) % 24})
     out = cyclical_encode(df, period=24, columns=["hour"])
-    assert isinstance(out, pl.DataFrame)
+    assert isinstance(out, pd.DataFrame)
     assert "hour_sin" in out.columns
     assert "hour_cos" in out.columns
-    np.testing.assert_allclose(out["hour_sin"][0], out["hour_sin"][24], atol=1e-10)
-    np.testing.assert_allclose(out["hour_cos"][0], out["hour_cos"][24], atol=1e-10)
+    np.testing.assert_allclose(out["hour_sin"].iloc[0], out["hour_sin"].iloc[24], atol=1e-10)
+    np.testing.assert_allclose(out["hour_cos"].iloc[0], out["hour_cos"].iloc[24], atol=1e-10)
 
 
 def test_cyclical_encode_drop_original() -> None:
@@ -49,7 +48,7 @@ def test_cyclical_encode_drop_original() -> None:
         {"hour": np.arange(48) % 24}, index=pd.date_range("2024-01-01", periods=48, freq="h")
     )
     out = cyclical_encode(df, columns=["hour"], period=24, drop_original=True)
-    assert isinstance(out, pl.DataFrame)
+    assert isinstance(out, pd.DataFrame)
     assert "hour" not in out.columns
     assert "hour_sin" in out.columns
 
@@ -57,7 +56,7 @@ def test_cyclical_encode_drop_original() -> None:
 def test_lag_features_basic() -> None:
     df = pd.DataFrame({"x": np.arange(10, dtype=float)})
     out = lag_features(df, columns=["x"], lags=[1, 2], drop_na=True)
-    assert isinstance(out, pl.DataFrame)
+    assert isinstance(out, pd.DataFrame)
     assert "x_lag1" in out.columns
     assert "x_lag2" in out.columns
     assert len(out) == 8
@@ -81,9 +80,9 @@ def test_rolling_statistics() -> None:
     out = rolling_statistics(df, columns=["x"], windows=[3], stats=["mean", "std"])
     assert "x_roll3_mean" in out.columns
     assert "x_roll3_std" in out.columns
-    assert out["x_roll3_mean"][0] is None
-    assert out["x_roll3_mean"][1] is None
-    assert out["x_roll3_mean"][2] == pytest.approx(1.0)
+    assert np.isnan(out["x_roll3_mean"].iloc[0])
+    assert np.isnan(out["x_roll3_mean"].iloc[1])
+    assert out["x_roll3_mean"].iloc[2] == pytest.approx(1.0)
 
 
 def test_rolling_statistics_rejects_unknown() -> None:

@@ -37,8 +37,8 @@ def test_scaler_requires_fit() -> None:
 
 def test_scaler_rejects_non_dataframe() -> None:
     scaler = TimeSeriesScaler()
-    # numpy arrays are accepted (wrapped in polars), but need a proper target column.
-    with pytest.raises((KeyError, TypeError)):
+    # numpy arrays are not accepted directly (must be pd.DataFrame with target column).
+    with pytest.raises((KeyError, TypeError, AttributeError)):
         scaler.fit(np.zeros((3, 2)), target="x")
 
 

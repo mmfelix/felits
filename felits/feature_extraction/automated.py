@@ -5,9 +5,8 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 from scipy import stats as _stats
-
-from .._compat import datetime_columns, is_pandas_datetime_index, to_polars
 
 __all__ = [
     "tsfresh_extract",
@@ -17,14 +16,14 @@ __all__ = [
 
 
 def tsfresh_extract(
-    df,
+    df: pd.DataFrame,
     column_id: str,
     column_sort: str,
     target: Optional[np.ndarray] = None,
     default_fc_parameters: Optional[dict | object] = None,
     n_jobs: int = 0,
     disable_progressbar: bool = True,
-):
+) -> pd.DataFrame:
     """Run tsfresh feature extraction (requires pandas DataFrame internally)."""
     try:
         from tsfresh import extract_features as _tsf_extract
@@ -33,13 +32,10 @@ def tsfresh_extract(
     except ImportError as exc:
         raise ImportError("tsfresh_extract requires tsfresh.") from exc
 
-    pdf = to_polars(df)
-    pandas_df = pdf.to_pandas()
-
     if default_fc_parameters is None:
         default_fc_parameters = MinimalFCParameters()
     features = _tsf_extract(
-        pandas_df,
+        df,
         column_id=column_id,
         column_sort=column_sort,
         default_fc_parameters=default_fc_parameters,
@@ -47,12 +43,12 @@ def tsfresh_extract(
         disable_progressbar=disable_progressbar,
     )
     if target is not None:
-        unique_ids = pandas_df[column_id].unique()
+        unique_ids = df[column_id].unique()
         target_aligned = (
             target.loc[unique_ids] if hasattr(target, "loc") else target[: len(unique_ids)]
         )
         features = _tsf_select(features, target_aligned)
-    return to_polars(features) if not isinstance(features, type(pdf)) else features
+    return features
 
 
 def fats_extract(series, n_periods: int = 1) -> dict[str, float]:
@@ -93,7 +89,7 @@ def fats_extract(series, n_periods: int = 1) -> dict[str, float]:
 
 
 def extract_all_features(
-    df,
+    df: pd.DataFrame,
     target: str,
     *,
     add_cyclic: bool = True,
@@ -103,28 +99,25 @@ def extract_all_features(
     add_lags: bool = True,
     lags: tuple[int, ...] = (1, 24, 168),
     add_spectral: bool = True,
-):
+) -> pd.DataFrame:
     """Convenience pipeline: cyclic + rolling + lag + (optional) spectral features.
 
-    Returns a :class:`polars.DataFrame` regardless of input type.
+    Returns a :class:`pd.DataFrame` regardless of input type.
     """
-    import polars as pl
-
     from .spectral import fft_features, spectral_entropy
     from .temporal import cyclical_encode, lag_features, rolling_statistics
 
-    pdf = to_polars(df)
-    out = pdf
+    out = df.copy()
 
     if add_cyclic:
-        if is_pandas_datetime_index(df):
-            out = cyclical_encode(df)
-        elif isinstance(out, pl.DataFrame):
-            dt_cols = datetime_columns(out)
-            if dt_cols:
-                out = cyclical_encode(out, datetime_col=dt_cols[0])
-        else:
+        if isinstance(df.index, pd.DatetimeIndex):
             out = cyclical_encode(out)
+        else:
+            datetime_cols = [c for c in out.columns if pd.api.types.is_datetime64_any_dtype(out[c])]
+            if datetime_cols:
+                out = cyclical_encode(out, datetime_col=datetime_cols[0])
+            else:
+                out = cyclical_encode(out)
 
     if add_rolling:
         out = rolling_statistics(out, columns=[target], windows=rolling_windows)
@@ -137,6 +130,6 @@ def extract_all_features(
         spec = fft_features(target_arr, top_k=5)
         ent = spectral_entropy(target_arr)
         for k, v in spec.items():
-            out = out.with_columns(pl.lit(float(v)).alias(f"fft_{k}"))
-        out = out.with_columns(pl.lit(float(ent)).alias("spectral_entropy"))
+            out[f"fft_{k}"] = float(v)
+        out["spectral_entropy"] = float(ent)
     return out

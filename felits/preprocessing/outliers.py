@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
+from typing import Union
 
 import numpy as np
+import pandas as pd
 
-if TYPE_CHECKING:
-    import pandas as pd
-    import polars as pl
-
-ArrayLike = Union[np.ndarray, "pl.Series", "pl.DataFrame", "pd.Series", "pd.DataFrame"]
+ArrayLike = Union[np.ndarray, pd.Series, pd.DataFrame]
 
 
 def iqr_outlier_detection(
@@ -88,23 +85,10 @@ class HampelFilter:
 
 
 def _as_1d_float64(x: ArrayLike, column: str | None = None) -> np.ndarray:
-    from .._compat import is_pandas, is_polars
-
-    if is_polars(x):
-        import polars as pl
-
-        assert isinstance(x, (pl.DataFrame, pl.Series))
-        if isinstance(x, pl.DataFrame):
-            col = column if column else x.columns[0]
-            return x[col].to_numpy().astype(float, copy=False)
-        return x.to_numpy().astype(float, copy=False)
-    if is_pandas(x):
-        import pandas as pd
-
-        assert isinstance(x, (pd.DataFrame, pd.Series))
-        if isinstance(x, pd.DataFrame):
-            col = column if column else x.columns[0]
-            return x[col].to_numpy(dtype=float, copy=False)
+    if isinstance(x, pd.DataFrame):
+        col = column if column else x.columns[0]
+        return x[col].to_numpy(dtype=float, copy=False)
+    if isinstance(x, pd.Series):
         return x.to_numpy(dtype=float, copy=False)
     arr = np.asarray(x, dtype=float)
     if arr.ndim > 1:

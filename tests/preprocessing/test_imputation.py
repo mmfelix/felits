@@ -38,6 +38,6 @@ def test_time_aware_interpolate_datetime() -> None:
 
 
 def test_time_aware_interpolate_requires_series() -> None:
-    # Now accepts numpy arrays (wrapped to polars internally)
+    # Now accepts numpy arrays (wrapped to pandas internally)
     result = time_aware_interpolate(np.array([1.0, np.nan, 3.0]))
     assert result is not None

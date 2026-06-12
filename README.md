@@ -15,7 +15,7 @@ The library is the result of the INIC01-6 research project (CONACYT, Paraguay) a
 - **Models** — XGBoost, RandomForest, LinearRegression, plus `tf.keras` RNN models (LSTM/GRU/BiLSTM/BiGRU) and Bahdanau attention variants
 - **XAI** — LIME, SHAP, and **Deep SHAP as a closed-loop meta-optimizer** for feature elimination
 - **Optuna** hyperparameter optimization with multi-objective TPE sampler
-- **Dual API** — all modules accept both `pandas` and `polars` DataFrames; internal logic uses `polars` for performance
+- **Pure pandas** — built end-to-end on top of pandas, NumPy and scikit-learn
 
 ## Requirements
 
@@ -55,18 +55,16 @@ uv venv --python 3.13 .venv  # create a venv with it
 ## Quickstart
 
 ```python
-import polars as pl
+import pandas as pd
 from felits.preprocessing import HampelFilter, TimeSeriesScaler
 from felits.feature_extraction import cyclical_encode, rolling_statistics
 from felits.feature_selection import FeatureSelector
 from felits.models import XGBoostForecaster
 from felits import Metrics
 
-df = pl.read_csv("demand.csv", try_parse_dates=True)
-df = df.with_columns(
-    pl.Series("value_clean", HampelFilter(window_size=24).transform(df["value"]))
-)
-df = cyclical_encode(df, datetime_col="timestamp")
+df = pd.read_csv("demand.csv", parse_dates=["timestamp"], index_col="timestamp")
+df["value_clean"] = HampelFilter(window_size=24).transform(df["value"])
+df = cyclical_encode(df)
 df = rolling_statistics(df, columns=["value_clean"], windows=[24, 168], stats=["mean", "std"])
 
 model = XGBoostForecaster(n_estimators=500, max_depth=6)
@@ -81,7 +79,6 @@ print(m.dict_metrics())
 
 ```
 felits/
-├── _compat.py               # pandas/polars compatibility layer
 ├── preprocessing/           # outliers, decomposition, scaling, imputation, metrics
 ├── feature_extraction/      # temporal, spectral, automated
 ├── feature_selection/       # causal, information, regularization, ensemble, xai

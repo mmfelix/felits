@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import polars as pl
 
 from felits.feature_extraction.automated import extract_all_features, fats_extract, tsfresh_extract
 
@@ -47,7 +46,7 @@ def test_tsfresh_extract_minimal_pipeline() -> None:
 
 def test_extract_all_features_includes_components(hourly_demand: pd.DataFrame) -> None:
     out = extract_all_features(hourly_demand, target="demand")
-    assert isinstance(out, pl.DataFrame)
+    assert isinstance(out, pd.DataFrame)
     assert "hour_sin" in out.columns
     assert "demand_roll24_mean" in out.columns
     assert "demand_lag1" in out.columns

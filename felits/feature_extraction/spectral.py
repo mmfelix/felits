@@ -28,8 +28,8 @@ __all__ = [
 
 def _as_1d(x) -> np.ndarray:
     if isinstance(x, (pd.Series, pd.DataFrame)):
-        return np.asarray(x).ravel()
-    return np.asarray(x, dtype=float).ravel()
+        return np.asarray(x, dtype=float).ravel().copy()
+    return np.asarray(x, dtype=float).ravel().copy()
 
 
 def fft_features(series, top_k: int = 5, sampling_rate: float = 1.0) -> dict[str, float]:

@@ -1,32 +1,26 @@
 """Time-series decomposition via STL (statsmodels backend).
 
-Accepts both ``pandas`` and ``polars`` Series; converts internally to
-``pandas`` for ``statsmodels`` compatibility and returns the caller's
+Accepts ``pd.Series`` or ``np.ndarray``; converts internally to
+``pd.Series`` for ``statsmodels`` compatibility and returns the caller's
 native type.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import numpy as np
-
-from .._compat import is_pandas, is_polars
-
-if TYPE_CHECKING:
-    import pandas as pd
-    import polars as pl
+import pandas as pd
 
 
 @dataclass
 class DecompositionResult:
     """Container for the three STL components."""
 
-    observed: "pd.Series | pl.Series | np.ndarray"
-    trend: "pd.Series | pl.Series | np.ndarray"
-    seasonal: "pd.Series | pl.Series | np.ndarray"
-    resid: "pd.Series | pl.Series | np.ndarray"
+    observed: "pd.Series | np.ndarray"
+    trend: "pd.Series | np.ndarray"
+    seasonal: "pd.Series | np.ndarray"
+    resid: "pd.Series | np.ndarray"
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -38,27 +32,14 @@ class DecompositionResult:
 
 
 def _to_pandas_series(x):
-    import pandas as pd
-
     if isinstance(x, pd.Series):
         return x.astype(float)
-    if is_polars(x):
-        import polars as pl
-
-        if isinstance(x, pl.Series):
-            return x.to_pandas().astype(float)
-        if isinstance(x, pl.DataFrame):
-            return x.to_series().to_pandas().astype(float)
     arr = np.asarray(x, dtype=float)
     return pd.Series(arr, name="value")
 
 
-def _back_to_native(series_pd, original):
-    if is_polars(original):
-        import polars as pl
-
-        return pl.Series(series_pd.name or "value", series_pd.to_numpy())
-    if is_pandas(original):
+def _back_to_native(series_pd: pd.Series, original):
+    if isinstance(original, pd.Series):
         return series_pd
     return series_pd.to_numpy()
 
@@ -75,7 +56,7 @@ def stl_decompose(
     Parameters
     ----------
     series:
-        1-D array-like, ``pd.Series`` or ``pl.Series``.
+        1-D array-like, ``pd.Series`` or ``np.ndarray``.
     period:
         Seasonal period (e.g. ``24`` for hourly daily seasonality).
     seasonal:
@@ -88,7 +69,7 @@ def stl_decompose(
     Returns
     -------
     DecompositionResult
-        Components in the same type as the input (``pd.Series``, ``pl.Series``, or ``np.ndarray``).
+        Components in the same type as the input (``pd.Series`` or ``np.ndarray``).
     """
     from statsmodels.tsa.seasonal import STL
 
@@ -111,9 +92,7 @@ def seasonal_adjust(series, period: int, robust: bool = True):
     decomp = stl_decompose(series, period=period, robust=robust)
     obs = decomp.observed
     seas = decomp.seasonal
-    if is_polars(series):
-        return obs - seas
-    if is_pandas(series):
+    if isinstance(obs, (pd.Series, np.ndarray)) and type(obs) is type(seas):
         return obs - seas
     return np.asarray(obs, dtype=float) - np.asarray(seas, dtype=float)
 
