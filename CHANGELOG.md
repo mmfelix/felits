@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Removed the `notebooks` dependency group. All Jupyter-related dependencies
+  are now consolidated in the `dev` group: `ipykernel`, `jupyterlab`,
+  `jupyter-ai` (official extension), `jupyter-lsp`, `jupyterlab-lsp`,
+  `nbconvert`, `ipywidgets`.
+- `manual/08-uso-personal.md` updated to document the new install command and
+  the Jupyter AI + OpenCode agent workflow.
+
 ## [0.3.0] — 2026-06-11
 
 ### Changed
