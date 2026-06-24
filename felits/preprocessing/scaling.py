@@ -285,13 +285,22 @@ class SlidingWindowSplitter:
         self.jump = jump
         self.scaling_type = scaling_type
 
-    def split(self, df: pd.DataFrame) -> WindowedSplit:
+    def split(
+        self, df: pd.DataFrame, scaler: Optional[TimeSeriesScaler] = None
+    ) -> WindowedSplit:
         """Split the DataFrame into sliding windows.
 
         Parameters
         ----------
         df : pd.DataFrame
             The input time-series DataFrame.
+        scaler : TimeSeriesScaler, optional
+            A pre-fitted scaler to use for transforming ``df``. If provided,
+            it is also returned in the resulting :class:`WindowedSplit` so
+            that downstream splits (e.g. val/test) share the same scaling
+            learned on train. If ``None`` (default) and ``scaling_type`` is
+            not ``None``, a fresh ``TimeSeriesScaler`` is fit on ``df`` as
+            before.
 
         Returns
         -------
@@ -304,7 +313,8 @@ class SlidingWindowSplitter:
         KeyError
             If the `target` column is not found in `df`.
         ValueError
-            If the DataFrame is too short for the requested window sizes.
+            If the DataFrame is too short for the requested window sizes,
+            or if a pre-fitted ``scaler`` is inconsistent with ``df``.
         """
         if self.target not in df.columns:
             raise KeyError(f"target={self.target!r} not found in columns: {list(df.columns)}")
@@ -316,8 +326,31 @@ class SlidingWindowSplitter:
                 f"hist_window ({self.hist_window}) and pred_window ({self.pred_window})."
             )
 
-        scaler: Optional[TimeSeriesScaler] = None
-        if self.scaling_type is not None:
+        if scaler is not None and self.scaling_type is None:
+            raise ValueError(
+                "A pre-fitted scaler was passed but scaling_type=None; "
+                "either set scaling_type or pass scaler=None."
+            )
+
+        if scaler is not None:
+            if scaler.scaler_ is None or scaler.target_scaler_ is None:
+                raise ValueError(
+                    "The provided scaler is not fitted. Call `scaler.fit(df, target)` first."
+                )
+            if scaler.target_name_ != self.target:
+                raise ValueError(
+                    f"Pre-fitted scaler was fit on target={scaler.target_name_!r} "
+                    f"but splitter target={self.target!r}."
+                )
+            expected_feat_cols = [c for c in df.columns if c != self.target]
+            if list(scaler.feature_names_) != expected_feat_cols:
+                raise ValueError(
+                    "Pre-fitted scaler feature_names_ do not match df columns "
+                    f"(excluding target). Got {list(scaler.feature_names_)}, "
+                    f"expected {expected_feat_cols}."
+                )
+            data = scaler.transform(df)
+        elif self.scaling_type is not None:
             scaler = TimeSeriesScaler(scaling_type=self.scaling_type).fit(df, self.target)
             data = scaler.transform(df)
         else:

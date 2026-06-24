@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 from sklearn.base import BaseEstimator, RegressorMixin
@@ -85,6 +85,7 @@ class XGBoostForecaster(BaseEstimator, RegressorMixin):
         reg_lambda: float = 1.0,
         reg_alpha: float = 0.0,
         max_bin: int = 256,
+        early_stopping_rounds: Optional[int] = None,
     ) -> None:
         self.n_estimators = n_estimators
         self.max_depth = max_depth
@@ -98,9 +99,15 @@ class XGBoostForecaster(BaseEstimator, RegressorMixin):
         self.reg_lambda = reg_lambda
         self.reg_alpha = reg_alpha
         self.max_bin = max_bin
+        self.early_stopping_rounds = early_stopping_rounds
         self._model: Any = None
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "XGBoostForecaster":
+    def fit(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        eval_set: Optional[list] = None,
+    ) -> "XGBoostForecaster":
         """Fit the XGBoost model to the training data.
 
         Parameters
@@ -110,6 +117,12 @@ class XGBoostForecaster(BaseEstimator, RegressorMixin):
             (n_samples, timesteps, features).
         y : np.ndarray
             Target values of shape (n_samples,) or (n_samples, n_targets).
+        eval_set : list of (X, y) tuples, optional
+            Validation set(s) for early stopping. When provided, the underlying
+            XGBoost model monitors its loss on the first tuple in the list
+            (XGBoost API: ``eval_set[0]``). Pass ``[(X_val, y_val)]`` for a
+            single validation split. Early stopping is enabled if
+            ``self.early_stopping_rounds`` was set at construction time.
 
         Returns
         -------
@@ -133,14 +146,14 @@ class XGBoostForecaster(BaseEstimator, RegressorMixin):
 
         device = _resolve_device(self.device, xgb)
 
-        self._model = xgb.XGBRegressor(
+        model_kwargs: dict = dict(
             n_estimators=self.n_estimators,
             max_depth=self.max_depth,
             learning_rate=self.learning_rate,
             random_state=self.random_state,
             n_jobs=self.n_jobs,
-            tree_method="hist",  # Best practice for speed and memory
-            enable_categorical=True,  # Handles cyclic features natively
+            tree_method="hist",
+            enable_categorical=True,
             device=device,
             subsample=self.subsample,
             colsample_bytree=self.colsample_bytree,
@@ -149,7 +162,21 @@ class XGBoostForecaster(BaseEstimator, RegressorMixin):
             reg_alpha=self.reg_alpha,
             max_bin=self.max_bin,
         )
-        self._model.fit(X_flat, y_flat)
+        if self.early_stopping_rounds is not None:
+            model_kwargs["early_stopping_rounds"] = self.early_stopping_rounds
+
+        self._model = xgb.XGBRegressor(**model_kwargs)
+
+        fit_kwargs: dict = {}
+        if eval_set is not None:
+            eval_set_flat: list = []
+            for Xi, yi in eval_set:
+                Xi_flat = flatten_time_series(Xi)
+                yi_flat = np.asarray(yi, dtype=float)
+                eval_set_flat.append((Xi_flat, yi_flat))
+            fit_kwargs["eval_set"] = eval_set_flat
+
+        self._model.fit(X_flat, y_flat, **fit_kwargs)
         return self
 
     def predict(self, X: np.ndarray) -> np.ndarray:
