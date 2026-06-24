@@ -65,6 +65,34 @@ def test_xgboost_forecaster() -> None:
     assert preds.shape == y.shape
 
 
+@pytest.mark.xgb
+def test_xgboost_forecaster_device_cpu() -> None:
+    X, y = _toy_dataset()
+    model = XGBoostForecaster(n_estimators=20, random_state=0, device="cpu")
+    model.fit(X, y)
+    preds = model.predict(X)
+    assert preds.shape == y.shape
+
+
+@pytest.mark.xgb
+def test_xgboost_forecaster_params_passthrough() -> None:
+    X, y = _toy_dataset()
+    model = XGBoostForecaster(
+        n_estimators=20,
+        random_state=0,
+        device="cpu",
+        subsample=0.5,
+        colsample_bytree=0.5,
+        max_bin=64,
+        min_child_weight=3,
+        reg_lambda=2.0,
+        reg_alpha=0.5,
+    )
+    model.fit(X, y)
+    preds = model.predict(X)
+    assert preds.shape == y.shape
+
+
 def test_predict_before_fit_raises() -> None:
     model = RandomForestForecaster()
     with pytest.raises(RuntimeError, match="fitted"):

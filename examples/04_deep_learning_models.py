@@ -24,7 +24,7 @@ def main() -> None:
 
     # Vanilla LSTM
     print("Training vanilla LSTM...")
-    lstm = RNNBasedModel(type="LSTM", timesteps=24, features=1, num_units=32, output_units=12)
+    lstm = RNNBasedModel(model_type="LSTM", timesteps=24, features=1, num_units=32, output_units=12)
     lstm.compile(optimizer="adam", loss="mse")
     lstm.fit(X, y, epochs=2, batch_size=32, verbose=0, shuffle=False)
     pred_lstm = lstm.predict(X, verbose=0)
@@ -32,7 +32,7 @@ def main() -> None:
 
     # LSTM + Bahdanau attention
     print("Training LSTM + Bahdanau attention...")
-    attn = RNNAttentionModel(type="LSTM", timesteps=24, features=1, num_units=32, output_units=12)
+    attn = RNNAttentionModel(model_type="LSTM", timesteps=24, features=1, num_units=32, output_units=12)
     attn.compile(optimizer="adam", loss="mse")
     attn.fit(X, y, epochs=2, batch_size=32, verbose=0, shuffle=False)
     pred_attn = attn.predict(X, verbose=0)

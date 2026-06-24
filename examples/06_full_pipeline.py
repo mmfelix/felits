@@ -70,8 +70,15 @@ def main() -> None:
         from felits.models import RNNBasedModel
 
         df2 = data[[target, *feature_cols]].dropna()
-        scaler = TimeSeriesScaler(scaling_type="minmax").fit(df2, target)
-        scaled = scaler.transform(df2)
+        # Split BEFORE fitting the scaler to avoid target leakage from test into
+        # the feature/target scaling statistics.
+        cut_rows = int(0.8 * len(df2))
+        train_df = df2.iloc[:cut_rows]
+        test_df = df2.iloc[cut_rows:]
+        scaler = TimeSeriesScaler(scaling_type="minmax").fit(train_df, target)
+        scaled_train = scaler.transform(train_df)
+        scaled_test = scaler.transform(test_df)
+        scaled = np.vstack([scaled_train, scaled_test])
         y_idx = list(df2.columns).index(target)
         h, p = 24, 12
         Xs3, ys3 = [], []
@@ -81,7 +88,7 @@ def main() -> None:
         Xs3, ys3 = np.asarray(Xs3, dtype="float32"), np.asarray(ys3, dtype="float32")
         cut = int(0.8 * len(Xs3))
         rnn = RNNBasedModel(
-            type="LSTM", timesteps=h, features=Xs3.shape[2], num_units=32, output_units=p
+            model_type="LSTM", timesteps=h, features=Xs3.shape[2], num_units=32, output_units=p
         )
         rnn.compile(optimizer=tf.keras.optimizers.Adam(), loss="mse")
         rnn.fit(Xs3[:cut], ys3[:cut], epochs=2, batch_size=32, verbose=0, shuffle=False)
