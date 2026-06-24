@@ -266,6 +266,21 @@ class SlidingWindowSplitter:
         If False, windows overlap by 1 time step (step size = 1).
     scaling_type : ScalerType or None, default="minmax"
         The type of scaling to apply. If None, no scaling is applied.
+    day_aligned : bool, default=False
+        If True, anchor every target to a calendar-day boundary at 00:00:
+        each sample is ``(X, y)`` where ``y`` covers the 24 hours of a
+        calendar day starting at 00:00 (``X0 = hour 0``) and ``X`` is the
+        ``HIST_WINDOW`` hours immediately preceding 00:00 of that day.
+        Hours before the first valid 00:00 (i.e. the first 00:00 that has
+        at least ``HIST_WINDOW`` preceding rows in ``df``) are left as an
+        *offset* and are not used as a target start. With ``day_aligned=True``,
+        ``PRED_WINDOW`` must equal 24 (one full calendar day). When True,
+        ``jump`` is ignored (one window per calendar day).
+    jump : bool, default=True
+        If True, windows do not overlap (step size = `pred_window`).
+        If False, windows overlap by 1 time step (step size = 1).
+    scaling_type : ScalerType or None, default="minmax"
+        The type of scaling to apply. If None, no scaling is applied.
     """
 
     def __init__(
@@ -275,15 +290,22 @@ class SlidingWindowSplitter:
         pred_window: int = 24,
         jump: bool = True,
         scaling_type: Optional[ScalerType] = "minmax",
+        day_aligned: bool = False,
     ) -> None:
         if hist_window < 1 or pred_window < 1:
             raise ValueError("`hist_window` and `pred_window` must be >= 1")
+        if day_aligned and pred_window != 24:
+            raise ValueError(
+                f"`day_aligned=True` requires `pred_window=24` (one calendar day), "
+                f"got {pred_window}."
+            )
 
         self.target = target
         self.hist_window = hist_window
         self.pred_window = pred_window
         self.jump = jump
         self.scaling_type = scaling_type
+        self.day_aligned = day_aligned
 
     def split(
         self, df: pd.DataFrame, scaler: Optional[TimeSeriesScaler] = None
@@ -358,6 +380,11 @@ class SlidingWindowSplitter:
 
         target_index = list(df.columns).index(self.target)
 
+        if self.day_aligned:
+            return self._split_day_aligned(
+                data, target_index, scaler, df.index
+            )
+
         if self.jump:
             step = self.pred_window
             n_samples = (n - self.hist_window) // self.pred_window
@@ -374,5 +401,62 @@ class SlidingWindowSplitter:
             end_out = start_out + self.pred_window
             X[i] = data[start_in:start_out, :]
             y[i] = data[start_out:end_out, target_index]
+
+        return WindowedSplit(X=X, y=y, scaler=scaler)
+
+    def _split_day_aligned(
+        self,
+        data: np.ndarray,
+        target_index: int,
+        scaler: Optional[TimeSeriesScaler],
+        index: pd.DatetimeIndex,
+    ) -> WindowedSplit:
+        """Anchor every target to a calendar-day boundary at 00:00.
+
+        Each sample is ``(X, y)`` where ``y`` covers the 24 hours of a
+        calendar day starting at 00:00 (``X0 = hour 0``) and ``X`` is the
+        ``HIST_WINDOW`` hours immediately preceding 00:00 of that day.
+
+        Hours before the first valid 00:00 (the first 00:00 with at least
+        ``HIST_WINDOW`` preceding rows in ``index``) form an *offset* and
+        are not used as a target start.
+        """
+        n = len(data)
+        hist = self.hist_window
+        pred = self.pred_window
+
+        if n < hist + pred:
+            raise ValueError(
+                f"DataFrame too short (length {n}) for hist_window={hist} and "
+                f"pred_window={pred}."
+            )
+        if len(index) != n:
+            raise ValueError(
+                f"index length ({len(index)}) does not match data length ({n})."
+            )
+
+        # Positional indices whose original timestamp is at 00:00.
+        hours = np.asarray(index.hour)
+        midnight_mask = hours == 0
+        midnight_positions = np.flatnonzero(midnight_mask).astype(np.int64)
+
+        # Keep only midnights that have enough preceding history and enough
+        # room after for the full target window.
+        valid = midnight_positions[midnight_positions >= hist]
+        valid = valid[valid + pred <= n]
+        n_samples = len(valid)
+
+        if n_samples == 0:
+            raise ValueError(
+                f"No valid day-aligned windows: need midnight positions m with "
+                f"m >= {hist} and m + {pred} <= {n}, but the DataFrame has length {n}."
+            )
+
+        X = np.empty((n_samples, hist, data.shape[1]), dtype=np.float32)
+        y = np.empty((n_samples, pred), dtype=np.float32)
+
+        for k, m in enumerate(valid):
+            X[k] = data[m - hist:m, :]
+            y[k] = data[m:m + pred, target_index]
 
         return WindowedSplit(X=X, y=y, scaler=scaler)
