@@ -15,10 +15,12 @@ The module exposes:
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from statsmodels.tools.sm_exceptions import ValueWarning as StatsmodelsValueWarning
 from statsmodels.tsa.stattools import grangercausalitytests
 
 __all__ = [
@@ -72,7 +74,29 @@ def granger_causality_test(
         raise ValueError("Series too short for the requested `max_lag`.")
     # statsmodels expects the two columns as a 2-D array with [y, x] order.
     data = np.column_stack([y_arr, x_arr])
-    raw = grangercausalitytests(data, maxlag=max_lag, verbose=False)
+    # statsmodels' Granger test fits an OLS regression of y on its own lags
+    # plus x's lags. When ``x`` is itself a lag/rolling version of ``y`` (the
+    # common case for our engineered candidate features) the design matrix
+    # is near-collinear and statsmodels emits:
+    #   ``ValueWarning: covariance of constraints does not have full rank``
+    # The F-test p-value is still computed and valid; the warning is purely
+    # informational. Suppress it locally to keep the prepare_data.py log
+    # readable. Other statsmodels warnings (e.g. singular matrices) are kept.
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"covariance of constraints does not have full rank.*",
+            category=StatsmodelsValueWarning,
+        )
+        # The ``verbose`` keyword is deprecated in recent statsmodels; the
+        # F-test results are returned regardless of its value, so silence
+        # the deprecation noise while still passing ``verbose=False``.
+        warnings.filterwarnings(
+            "ignore",
+            message=r".*verbose.*deprecated.*",
+            category=FutureWarning,
+        )
+        raw = grangercausalitytests(data, maxlag=max_lag, verbose=False)
     out: list[GrangerResult] = []
     for lag, res in raw.items():
         # res[0] is the ssr-based F test, res[1] the ssr chi2 test, etc.
